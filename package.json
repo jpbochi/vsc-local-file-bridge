@@ -1,0 +1,54 @@
+{
+  "name": "ext",
+  "displayName": "Reuse Remote Window",
+  "description": "Open a local file in any window via a vscodium:// URI, even when that window is connected to a remote host.",
+  "version": "0.0.1",
+  "publisher": "jp-reuse-remote-window",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "activationEvents": [
+    "onUri",
+    "onFileSystem:local-file"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "reuseRemoteWindow.openLocalPath",
+        "title": "Open Local File in This Window",
+        "category": "Reuse Remote Window"
+      },
+      {
+        "command": "reuseRemoteWindow.copyOpenUri",
+        "title": "Copy vscodium:// URI for a Local File",
+        "category": "Reuse Remote Window"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.75.0",
+    "@vscode/vsce": "^3.2.1",
+    "typescript": "^5.5.4"
+  }
+}
