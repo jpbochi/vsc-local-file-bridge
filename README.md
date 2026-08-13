@@ -1,12 +1,12 @@
-# Reuse Remote Window
+# Local File Bridge
 
 Open a file from your **local** disk in whatever VSCodium/VS Code window handles
 the URI — including a window that is connected to a remote host over SSH, WSL,
 or a dev container.
 
 ```
-vscodium://jp-reuse-remote-window.ext/open?path=/Users/jp/notes.md
-vscodium://jp-reuse-remote-window.ext/open?path=/Users/jp/notes.md&line=42&column=7
+vscodium://jpbochi.local-file-bridge/open?path=/Users/jp/notes.md
+vscodium://jpbochi.local-file-bridge/open?path=/Users/jp/notes.md&line=42&column=7
 ```
 
 ## Why it needs a custom scheme
@@ -36,7 +36,7 @@ extension takes whichever window it lands in; it cannot pick a different one.
 
 ## URI reference
 
-`{{scheme}}://jp-reuse-remote-window.ext/open?path=...`
+`{{scheme}}://jpbochi.local-file-bridge/open?path=...`
 
 | Parameter | Required | Notes                                                     |
 | --------- | -------- | --------------------------------------------------------- |
@@ -51,24 +51,28 @@ print(u.quote(sys.argv[1], safe=""))' "$path"`.
 
 ## Commands
 
-- **Reuse Remote Window: Open Local File in This Window** — prompts for a path;
+- **Local File Bridge: Open Local File in This Window** — prompts for a path;
   useful for testing without a URI.
-- **Reuse Remote Window: Copy vscodium:// URI for a Local File** — builds the
+- **Local File Bridge: Copy vscodium:// URI for a Local File** — builds the
   URI for the active editor, with its current line.
 
-Logs are in the **Reuse Remote Window** output channel.
+Logs are in the **Local File Bridge** output channel.
 
 ## Build and install
 
 ```sh
 npm install
 npm run compile
-npm run package                       # produces ext-0.0.1.vsix
-codium --install-extension ext-0.0.1.vsix
+npm run package                       # produces local-file-bridge-0.0.1.vsix
+codium --install-extension local-file-bridge-0.0.1.vsix
 ```
 
 Reload existing windows afterwards (**Developer: Reload Window**) so they pick
-up the extension.
+up the extension — a window's extension host is bound to the set of extension
+identities it started with, so a renamed or newly installed extension is
+invisible to windows that were already open. If a window reports that something
+else already owns the `local-file:` scheme, reloading it releases the stale
+provider; only one extension per window can own a scheme.
 
 To hack on it, press <kbd>F5</kbd> (Run Extension) and fire a URI at the
 Extension Development Host window.

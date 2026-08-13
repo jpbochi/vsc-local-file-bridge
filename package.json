@@ -1,9 +1,9 @@
 {
-  "name": "ext",
-  "displayName": "Reuse Remote Window",
+  "name": "local-file-bridge",
+  "displayName": "Local File Bridge",
   "description": "Open a local file in any window via a vscodium:// URI, even when that window is connected to a remote host.",
   "version": "0.0.1",
-  "publisher": "jp-reuse-remote-window",
+  "publisher": "jpbochi",
   "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"
@@ -28,14 +28,14 @@
   "contributes": {
     "commands": [
       {
-        "command": "reuseRemoteWindow.openLocalPath",
+        "command": "localFileBridge.openLocalPath",
         "title": "Open Local File in This Window",
-        "category": "Reuse Remote Window"
+        "category": "Local File Bridge"
       },
       {
-        "command": "reuseRemoteWindow.copyOpenUri",
+        "command": "localFileBridge.copyOpenUri",
         "title": "Copy vscodium:// URI for a Local File",
-        "category": "Reuse Remote Window"
+        "category": "Local File Bridge"
       }
     ]
   },

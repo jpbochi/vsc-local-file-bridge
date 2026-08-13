@@ -5,26 +5,39 @@ import * as vscode from 'vscode';
 import { LOCAL_SCHEME, LocalFileSystemProvider, toDiskPath, toLocalUri } from './localFileSystem';
 
 let log: vscode.LogOutputChannel;
+let schemeOwned = false;
 
 export function activate(context: vscode.ExtensionContext): void {
-  log = vscode.window.createOutputChannel('Reuse Remote Window', { log: true });
+  log = vscode.window.createOutputChannel('Local File Bridge', { log: true });
   const provider = new LocalFileSystemProvider();
 
   context.subscriptions.push(
     log,
     provider,
-    vscode.workspace.registerFileSystemProvider(LOCAL_SCHEME, provider, {
-      isCaseSensitive: process.platform === 'linux',
-    }),
     vscode.window.registerUriHandler({ handleUri }),
-    vscode.commands.registerCommand('reuseRemoteWindow.openLocalPath', promptAndOpen),
-    vscode.commands.registerCommand('reuseRemoteWindow.copyOpenUri', () =>
+    vscode.commands.registerCommand('localFileBridge.openLocalPath', promptAndOpen),
+    vscode.commands.registerCommand('localFileBridge.copyOpenUri', () =>
       copyOpenUri(context.extension.id),
     ),
   );
 
+  // Only one extension per window may own a scheme, and losing that race must
+  // not take the URI handler down with it — local windows never need the scheme.
+  try {
+    context.subscriptions.push(
+      vscode.workspace.registerFileSystemProvider(LOCAL_SCHEME, provider, {
+        isCaseSensitive: process.platform === 'linux',
+      }),
+    );
+    schemeOwned = true;
+  } catch (error) {
+    log.error(
+      `Could not claim the "${LOCAL_SCHEME}:" scheme: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
   log.info(
-    `Activated. remoteName=${vscode.env.remoteName ?? '<none>'} uriScheme=${vscode.env.uriScheme} extension=${context.extension.id}`,
+    `Activated. remoteName=${vscode.env.remoteName ?? '<none>'} uriScheme=${vscode.env.uriScheme} extension=${context.extension.id} schemeOwned=${schemeOwned}`,
   );
 }
 
@@ -68,6 +81,12 @@ async function openLocalPath(rawPath: string, selection?: vscode.Range): Promise
   // In a remote window, `file:` resolves against the remote host's disk, so the
   // local path has to be served through this extension's own scheme instead.
   const remote = vscode.env.remoteName;
+  if (remote !== undefined && !schemeOwned) {
+    fail(
+      `Something else in this window already owns the "${LOCAL_SCHEME}:" scheme, so local files cannot be served here. Reload the window and try again.`,
+    );
+    return;
+  }
   const target = remote === undefined ? vscode.Uri.file(diskPath) : toLocalUri(diskPath);
 
   log.info(`Opening ${target.toString(true)}`);
@@ -162,5 +181,5 @@ function toPosition(line: string | undefined, column: string | undefined): vscod
 
 function fail(message: string): void {
   log.error(message);
-  void vscode.window.showErrorMessage(`Reuse Remote Window: ${message}`);
+  void vscode.window.showErrorMessage(`Local File Bridge: ${message}`);
 }
