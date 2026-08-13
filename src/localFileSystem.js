@@ -1,35 +1,36 @@
-import * as fs from 'fs';
-import * as fsp from 'fs/promises';
-import * as path from 'path';
-import * as vscode from 'vscode';
+const fs = require('fs');
+const fsp = require('fs/promises');
+const path = require('path');
+const vscode = require('vscode');
 
 /**
  * Scheme used to expose the UI-side machine's disk. In a window connected to a
  * remote host, `file:` is served by the remote agent, so local paths are only
  * reachable through a scheme this extension provides from the local ext host.
  */
-export const LOCAL_SCHEME = 'local-file';
+const LOCAL_SCHEME = 'local-file';
 
-export function toLocalUri(absolutePath: string): vscode.Uri {
+function toLocalUri(absolutePath) {
   return vscode.Uri.file(absolutePath).with({ scheme: LOCAL_SCHEME });
 }
 
-export function toDiskPath(uri: vscode.Uri): string {
+function toDiskPath(uri) {
   return uri.with({ scheme: 'file' }).fsPath;
 }
 
-export class LocalFileSystemProvider implements vscode.FileSystemProvider {
-  private readonly emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
-  readonly onDidChangeFile = this.emitter.event;
+class LocalFileSystemProvider {
+  #emitter = new vscode.EventEmitter();
 
-  dispose(): void {
-    this.emitter.dispose();
+  onDidChangeFile = this.#emitter.event;
+
+  dispose() {
+    this.#emitter.dispose();
   }
 
-  watch(uri: vscode.Uri, options: { readonly recursive: boolean }): vscode.Disposable {
+  watch(uri, options) {
     const diskPath = toDiskPath(uri);
-    let watcher: fs.FSWatcher;
-    let watchingDirectory: boolean;
+    let watcher;
+    let watchingDirectory;
     try {
       watchingDirectory = fs.statSync(diskPath).isDirectory();
       watcher = fs.watch(diskPath, { recursive: options.recursive && watchingDirectory });
@@ -47,13 +48,13 @@ export class LocalFileSystemProvider implements vscode.FileSystemProvider {
             ? vscode.FileChangeType.Created
             : vscode.FileChangeType.Deleted
           : vscode.FileChangeType.Changed;
-      this.emitter.fire([{ type, uri: toLocalUri(changed) }]);
+      this.#emitter.fire([{ type, uri: toLocalUri(changed) }]);
     });
 
     return new vscode.Disposable(() => watcher.close());
   }
 
-  async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
+  async stat(uri) {
     const diskPath = toDiskPath(uri);
     try {
       const link = await fsp.lstat(diskPath);
@@ -93,12 +94,12 @@ export class LocalFileSystemProvider implements vscode.FileSystemProvider {
     }
   }
 
-  async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
+  async readDirectory(uri) {
     const diskPath = toDiskPath(uri);
     try {
       const entries = await fsp.readdir(diskPath, { withFileTypes: true });
       return Promise.all(
-        entries.map(async (entry): Promise<[string, vscode.FileType]> => {
+        entries.map(async (entry) => {
           if (!entry.isSymbolicLink()) {
             return [entry.name, fileType(entry)];
           }
@@ -115,16 +116,16 @@ export class LocalFileSystemProvider implements vscode.FileSystemProvider {
     }
   }
 
-  async createDirectory(uri: vscode.Uri): Promise<void> {
+  async createDirectory(uri) {
     try {
       await fsp.mkdir(toDiskPath(uri));
     } catch (error) {
       throw toFileSystemError(error, uri);
     }
-    this.emitter.fire([{ type: vscode.FileChangeType.Created, uri }]);
+    this.#emitter.fire([{ type: vscode.FileChangeType.Created, uri }]);
   }
 
-  async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+  async readFile(uri) {
     try {
       return await fsp.readFile(toDiskPath(uri));
     } catch (error) {
@@ -132,11 +133,7 @@ export class LocalFileSystemProvider implements vscode.FileSystemProvider {
     }
   }
 
-  async writeFile(
-    uri: vscode.Uri,
-    content: Uint8Array,
-    options: { readonly create: boolean; readonly overwrite: boolean },
-  ): Promise<void> {
+  async writeFile(uri, content, options) {
     const diskPath = toDiskPath(uri);
     const existed = await exists(diskPath);
     if (!existed && !options.create) {
@@ -153,25 +150,21 @@ export class LocalFileSystemProvider implements vscode.FileSystemProvider {
     } catch (error) {
       throw toFileSystemError(error, uri);
     }
-    this.emitter.fire([
+    this.#emitter.fire([
       { type: existed ? vscode.FileChangeType.Changed : vscode.FileChangeType.Created, uri },
     ]);
   }
 
-  async delete(uri: vscode.Uri, options: { readonly recursive: boolean }): Promise<void> {
+  async delete(uri, options) {
     try {
       await fsp.rm(toDiskPath(uri), { recursive: options.recursive });
     } catch (error) {
       throw toFileSystemError(error, uri);
     }
-    this.emitter.fire([{ type: vscode.FileChangeType.Deleted, uri }]);
+    this.#emitter.fire([{ type: vscode.FileChangeType.Deleted, uri }]);
   }
 
-  async rename(
-    source: vscode.Uri,
-    target: vscode.Uri,
-    options: { readonly overwrite: boolean },
-  ): Promise<void> {
+  async rename(source, target, options) {
     const targetPath = toDiskPath(target);
     if (await exists(targetPath)) {
       if (!options.overwrite) {
@@ -185,17 +178,13 @@ export class LocalFileSystemProvider implements vscode.FileSystemProvider {
     } catch (error) {
       throw toFileSystemError(error, source);
     }
-    this.emitter.fire([
+    this.#emitter.fire([
       { type: vscode.FileChangeType.Deleted, uri: source },
       { type: vscode.FileChangeType.Created, uri: target },
     ]);
   }
 
-  async copy(
-    source: vscode.Uri,
-    target: vscode.Uri,
-    options: { readonly overwrite: boolean },
-  ): Promise<void> {
+  async copy(source, target, options) {
     const targetPath = toDiskPath(target);
     if (!options.overwrite && (await exists(targetPath))) {
       throw vscode.FileSystemError.FileExists(target);
@@ -205,11 +194,11 @@ export class LocalFileSystemProvider implements vscode.FileSystemProvider {
     } catch (error) {
       throw toFileSystemError(error, source);
     }
-    this.emitter.fire([{ type: vscode.FileChangeType.Created, uri: target }]);
+    this.#emitter.fire([{ type: vscode.FileChangeType.Created, uri: target }]);
   }
 }
 
-function fileType(entry: fs.Stats | fs.Dirent): vscode.FileType {
+function fileType(entry) {
   if (entry.isDirectory()) {
     return vscode.FileType.Directory;
   }
@@ -219,7 +208,7 @@ function fileType(entry: fs.Stats | fs.Dirent): vscode.FileType {
   return vscode.FileType.Unknown;
 }
 
-async function exists(diskPath: string): Promise<boolean> {
+async function exists(diskPath) {
   try {
     await fsp.lstat(diskPath);
     return true;
@@ -228,7 +217,7 @@ async function exists(diskPath: string): Promise<boolean> {
   }
 }
 
-async function isWritable(diskPath: string): Promise<boolean> {
+async function isWritable(diskPath) {
   try {
     await fsp.access(diskPath, fs.constants.W_OK);
     return true;
@@ -237,10 +226,9 @@ async function isWritable(diskPath: string): Promise<boolean> {
   }
 }
 
-function toFileSystemError(error: unknown, uri: vscode.Uri): vscode.FileSystemError {
-  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+function toFileSystemError(error, uri) {
   const message = error instanceof Error ? error.message : String(error);
-  switch (code) {
+  switch (error?.code) {
     case 'ENOENT':
       return vscode.FileSystemError.FileNotFound(uri);
     case 'EISDIR':
@@ -258,3 +246,5 @@ function toFileSystemError(error: unknown, uri: vscode.Uri): vscode.FileSystemEr
       return vscode.FileSystemError.Unavailable(message);
   }
 }
+
+module.exports = { LOCAL_SCHEME, LocalFileSystemProvider, toLocalUri, toDiskPath };

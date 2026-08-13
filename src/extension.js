@@ -1,13 +1,18 @@
-import * as fsp from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
-import * as vscode from 'vscode';
-import { LOCAL_SCHEME, LocalFileSystemProvider, toDiskPath, toLocalUri } from './localFileSystem';
+const fsp = require('fs/promises');
+const os = require('os');
+const path = require('path');
+const vscode = require('vscode');
+const {
+  LOCAL_SCHEME,
+  LocalFileSystemProvider,
+  toDiskPath,
+  toLocalUri,
+} = require('./localFileSystem');
 
-let log: vscode.LogOutputChannel;
+let log;
 let schemeOwned = false;
 
-export function activate(context: vscode.ExtensionContext): void {
+function activate(context) {
   log = vscode.window.createOutputChannel('Local File Bridge', { log: true });
   const provider = new LocalFileSystemProvider();
 
@@ -41,7 +46,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 }
 
-async function handleUri(uri: vscode.Uri): Promise<void> {
+async function handleUri(uri) {
   log.info(`Handling URI: ${uri.toString(true)}`);
   const route = uri.path.replace(/\/+$/, '');
   if (route !== '/open') {
@@ -59,8 +64,8 @@ async function handleUri(uri: vscode.Uri): Promise<void> {
   await openLocalPath(rawPath, toPosition(query.get('line'), query.get('column')));
 }
 
-async function openLocalPath(rawPath: string, selection?: vscode.Range): Promise<void> {
-  let diskPath: string;
+async function openLocalPath(rawPath, selection) {
+  let diskPath;
   try {
     diskPath = resolveLocalPath(rawPath);
   } catch (error) {
@@ -100,7 +105,7 @@ async function openLocalPath(rawPath: string, selection?: vscode.Range): Promise
   }
 }
 
-async function promptAndOpen(): Promise<void> {
+async function promptAndOpen() {
   const rawPath = await vscode.window.showInputBox({
     title: 'Open Local File in This Window',
     prompt: `Absolute path on the machine running the ${vscode.env.appName} UI`,
@@ -112,7 +117,7 @@ async function promptAndOpen(): Promise<void> {
   }
 }
 
-async function copyOpenUri(extensionId: string): Promise<void> {
+async function copyOpenUri(extensionId) {
   const editor = vscode.window.activeTextEditor;
   const document = editor?.document;
   if (!document || (document.uri.scheme !== 'file' && document.uri.scheme !== LOCAL_SCHEME)) {
@@ -137,9 +142,9 @@ async function copyOpenUri(extensionId: string): Promise<void> {
  * "%". Segments without "=" are stitched back on, which recovers paths that
  * contain a literal "&".
  */
-function parseQuery(query: string): Map<string, string> {
-  const params = new Map<string, string>();
-  let lastKey: string | undefined;
+function parseQuery(query) {
+  const params = new Map();
+  let lastKey;
   for (const segment of query.split('&')) {
     const separator = segment.indexOf('=');
     if (separator === -1) {
@@ -154,7 +159,7 @@ function parseQuery(query: string): Map<string, string> {
   return params;
 }
 
-function resolveLocalPath(rawPath: string): string {
+function resolveLocalPath(rawPath) {
   let value = rawPath.trim();
   if (/^file:\/\//i.test(value)) {
     value = vscode.Uri.parse(value).fsPath;
@@ -168,7 +173,7 @@ function resolveLocalPath(rawPath: string): string {
   return path.normalize(value);
 }
 
-function toPosition(line: string | undefined, column: string | undefined): vscode.Range | undefined {
+function toPosition(line, column) {
   if (line === undefined) {
     return undefined;
   }
@@ -179,7 +184,9 @@ function toPosition(line: string | undefined, column: string | undefined): vscod
   return new vscode.Range(at, at);
 }
 
-function fail(message: string): void {
+function fail(message) {
   log.error(message);
   void vscode.window.showErrorMessage(`Local File Bridge: ${message}`);
 }
+
+module.exports = { activate };
