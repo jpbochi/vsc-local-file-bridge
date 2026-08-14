@@ -43,6 +43,7 @@
     "test": "node --test test/*.test.js",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "link:co": "mkdir -p \"$HOME/.local/bin\" && ln -sfn \"$(pwd)/bin/code-open\" \"$HOME/.local/bin/co\" && ls -l \"$HOME/.local/bin/co\"",
     "package": "vsce package --allow-missing-repository"
   },
   "devDependencies": {

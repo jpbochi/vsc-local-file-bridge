@@ -1,0 +1,83 @@
+#!/usr/bin/env -S bash -euo pipefail
+# Open a local file in a running editor window through the Local File Bridge URI
+# handler, which works even when the window that takes the URI is connected to a
+# remote host. Set CO_SCHEME to target a different editor (vscode, cursor, …).
+
+scheme=${CO_SCHEME:-vscodium}
+extension_id=jpbochi.local-file-bridge
+redirect=https://jpbochi.github.io/open
+program=${0##*/}
+
+if [ $# -ne 1 ]; then
+  echo "usage: $program <file>" >&2
+  exit 64
+fi
+
+target=$1
+if [ -d "$target" ]; then
+  echo "$program: $target is a directory; only files can be opened" >&2
+  exit 1
+fi
+if [ ! -f "$target" ]; then
+  echo "$program: $target does not exist" >&2
+  exit 1
+fi
+
+# Split without dirname/basename: BSD versions of those do not agree with GNU
+# about "--", and a leading dash in a name would otherwise look like an option.
+case $target in
+  */*)
+    directory=${target%/*}
+    name=${target##*/}
+    ;;
+  *)
+    directory=.
+    name=$target
+    ;;
+esac
+[ -n "$directory" ] || directory=/ # "/file" leaves an empty prefix
+
+# realpath and "readlink -f" are not portable, but cd + pwd is.
+absolute=$(cd -- "$directory" && pwd)
+absolute=${absolute%/}/$name
+
+# Percent-encode everything outside the unreserved set. Pass "keep-slashes" to
+# leave "/" readable, as a path can; nesting the whole URI in ?u= cannot.
+# LC_ALL=C walks bytes rather than characters, so anything multi-byte comes out
+# as the UTF-8 sequence the editor expects. Only ever called in $(…), so the
+# locale change cannot escape into the rest of the script.
+encode() {
+  LC_ALL=C
+  rest=$1
+  mode=${2:-}
+  encoded=''
+  # TODO: consider: node -e 'console.log(encodeURIComponent(process.argv[1]))' "hello world & foo=bar"
+  # or: echo -n "hello world & foo=bar" | jq -sRr @uri
+  while [ -n "$rest" ]; do
+    char=${rest%"${rest#?}"}
+    rest=${rest#?}
+    case $char in
+      [-._~a-zA-Z0-9]) encoded=$encoded$char ;;
+      /)
+        if [ "$mode" = keep-slashes ]; then encoded=$encoded/; else encoded=$encoded%2F; fi
+        ;;
+      *) encoded=$encoded$(printf '%%%02X' "'$char") ;;
+    esac
+  done
+  printf '%s' "$encoded"
+}
+
+uri="$scheme://$extension_id/open?path=$(encode "$absolute" keep-slashes)"
+
+# Terminals only linkify http(s) and file URLs, never a custom scheme, so print
+# the redirect form too: that one is clickable and survives copy & paste.
+echo "$redirect?u=$(encode "$uri")"
+
+if command -v open >/dev/null 2>&1; then
+  set -x; open "$uri"
+elif command -v xdg-open >/dev/null 2>&1; then
+  set -x; xdg-open "$uri"
+else
+  echo "$program: found neither open nor xdg-open" >&2
+  exit 1
+fi
