@@ -1,5 +1,7 @@
 # Local File Bridge
 
+[![test](https://github.com/jpbochi/vsc-local-file-bridge/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/jpbochi/vsc-local-file-bridge/actions/workflows/test.yml)
+
 Open a file from your **local** disk in whatever VSCodium/VS Code window handles the URI —
 including a window that is connected to a remote host over SSH, WSL, or a dev container.
 
