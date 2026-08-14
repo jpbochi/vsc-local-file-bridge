@@ -40,9 +40,10 @@
     ]
   },
   "scripts": {
+    "test": "node --test test/*.test.js",
     "package": "vsce package --allow-missing-repository"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.2.1"
+    "@vscode/vsce": "^3.9.2"
   }
 }

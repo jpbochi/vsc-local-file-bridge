@@ -64,6 +64,9 @@ Logs are in the **Local File Bridge** output channel.
 Plain CommonJS under `src/`, no build step — `npm install` is only there to fetch `vsce` for packaging,
 and the extension itself has no dependencies.
 
+`npm test` runs Node's built-in test runner against `src/`, with `test/vscode-stub.js` standing in for
+the `vscode` module, which only exists inside an extension host.
+
 ```sh
 npm install
 npm run package                       # produces local-file-bridge-0.0.1.vsix
